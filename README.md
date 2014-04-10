@@ -11,6 +11,7 @@ See the [CodeGolf Question](http://codegolf.stackexchange.com/questions/25347/su
 ### Game
 * The board is a fixed size (currently 800x800)
 * The game lasts 500 iterations
+
 ### Animals
 * Animals are represented by coloured circles, not letters
 * Wolves are not yet implemented in the game (although some code exists)
