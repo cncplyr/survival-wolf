@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<!-- 3rd Party -->
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>
+	<link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+	<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+	<!-- Ours -->
+	<script src="animals-base.js"></script>
+	<script src="animals-wolves.js"></script>
+	
+	<style>
+		body{background-color:#1C2536;}
+	</style>
+</head>
+<body>
+<br><br>
+	<div class="container">
+		<div class="row">
+			<div class="col-sm-8 col-md-8">
+				<canvas id="grid" width="800" height="800"></canvas>
+			</div>
+			<div class="col-sm-4 col-md-4">
+				<div class="panel panel-default">
+					<div class="panel-body">
+						<button type="button" class="btn btn-default btn-block" onclick="newGame();">New Game</button>
+						<button type="button" class="btn btn-default btn-block" id="run" onclick="toggleRun();">Run</button>
+		
+						<br>
+						
+						<span>Progress:</span><br>
+						<div class="progress">
+							<div id="info-progressbar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%;">0%</div>
+						</div>
+						
+						<br>
+						
+						<ul class="nav nav-pills nav-stacked">
+							<li class="active"><a href="#"><span id="count-stone" class="badge pull-right">100</span>Stone</a></li>
+							<li class="active"><a href="#"><span id="count-lion" class="badge pull-right">100</span>Lion</a></li>
+							<li class="active"><a href="#"><span id="count-bear" class="badge pull-right">100</span>Bear</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	<script type="text/javascript">
+	
+	var game;
+	var canvas;
+	var running = false;
+	var mapSize;
+	var halfStepMap = [];
+	var currentTurn = 0;
+	var maxTurn = 500;
+	
+	// make an m-by-n 2d array
+	function makeArray(cols,rows){
+		array = [];
+		for(var i = 0; i < rows; i++){
+			array[i] = [];
+			for(var j = 0; j < cols; j++){
+				array[i][j] = null;
+			}
+		}
+		
+		return array;
+	}
+	
+	function makeSquareArray(size) {
+		return makeArray(size, size);
+	}
+	
+	// place 100 animals of specified type at random positions
+	function populateAnimal(array, animalType) {
+		for(var animalCount = 0; animalCount < 100; animalCount++){
+			var x = Math.floor(Math.random() * array.length);
+			var y = Math.floor(Math.random() * array.length);
+			array[x][y] = new animalType;
+		}
+	}
+	
+	function next(){
+		// Clear the temp map used to find fights
+		halfStepMap = [];
+	
+		// Go through all the animals
+		for (var x = 0; x < game.mapSize; x++) {
+			for (var y = 0; y < game.mapSize; y++) {
+				if (game.map[x][y] != null) {
+					// Get the animal's surroundings and ask for it's move
+					var surroundings = getSurroundings(x,y);
+					var animal = game.map[x][y];
+					var move = animal.move(surroundings);
+					
+					// Move the animal
+					switch (move) {
+						case "h":
+							animalHalfStep(x, y, animal);
+							break;
+						case "l":
+							animalHalfStep(getSafeCoordinate(x-1), y, animal);
+							break;
+						case "u":
+							animalHalfStep(x, getSafeCoordinate(y-1), animal);
+							break;
+						case "r":
+							animalHalfStep(getSafeCoordinate(x+1), y, animal);
+							break;
+						case "d":
+							animalHalfStep(x, getSafeCoordinate(y+1), animal);
+							break;
+					}
+					
+					// Remove the animal from the old position
+					// Animals that don't move shouldn't be removed
+					if (move != "h"){
+						game.map[x][y] = null;
+					}
+				}
+			}
+		}
+		
+		// Resolve any fights that occur
+		resolveAllFights();
+		
+		// Redraw the map on screen
+		draw();
+		
+		currentTurn++;
+		
+		if (currentTurn == maxTurn) {
+			infoEndGame();
+		}
+	}	
+	
+	function animalHalfStep(x, y, animal) {
+		// TODO: replace this with something smarter (filters?)
+		var found = false;
+		$.each(halfStepMap, function(k, v) { 
+			if (v.x == x && v.y == y) {
+				v.animals.push(animal);
+				found = true;
+			}
+		});
+		if (!found) {
+			var halfStep = {x:x, y:y, animals:[animal]};
+			halfStepMap.push(halfStep);
+		}
+	}
+	
+	// Resolve fights on the map
+	function resolveAllFights() {
+		$.each(halfStepMap, function(k, v){
+			if (v.animals.length > 1) {
+				// fight the animals!
+				game.map[v.x][v.y] = resolveFight(v.animals);
+			} else {
+				// only one animal
+				game.map[v.x][v.y] = v.animals[0];
+			}
+		});
+	}
+	
+	
+	// Takes an array of animals, pseudo-randomly fights pairs of animals
+	// until only one remains
+	function resolveFight(animals) {
+		// While there are still animals standing...		
+		while(animals.length > 1){
+			// Shuffle list of animals
+			shuffle(animals);
+			// Make the first two animals fight!
+			var move0 = animals[0].fight(animals[1].name());
+			var move1 = animals[1].fight(animals[0].name());
+			// Check the winner of that fight
+			winner = playRockPaperScissorsSuicide(move0, move1);
+			if (winner === -1) {
+				// Both animals died, remove both from the list
+				animals.splice(0, 2)
+			} else {
+				// Remove the loser
+				animalsBaseCount[animals[winner].name()]--;
+				animals.splice(winner, 1);
+			}
+		}
+		return animals[0];
+	}
+	
+	// Returns 0 if first move won, 1 if second move won. -1 for double suicide
+	function playRockPaperScissorsSuicide(move0, move1){
+		// TODO: I don't really like this method...
+		var winner = -1; // No winners!
+		
+		if (move0 === move1) {
+			// A draw!
+			if (move0 === "x") {
+				// Double Suicide! Return -1
+			} else {
+				// Return a random winner
+				return Math.floor(Math.random()*2);
+			}
+		} else {
+			// Suicides
+			if (move0 === "x") { return 1; }
+			if (move1 === "x") { return 0; }
+		
+			switch (move0 + move1) {
+				case "rp" :
+					winner = 1;
+					break;
+				case "rs" :
+					winner = 0;
+					break;
+				case "pr" :
+					winner = 0;
+					break;
+				case "ps" :
+					winner = 1;
+					break;
+				case "sr" :
+					winner = 1;
+					break;
+				case "sp" :
+					winner = 0;
+					break;
+			}
+		}
+		
+		return winner;
+	}
+	
+	// http://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
+	function shuffle(array) {
+		var currentIndex = array.length
+			, temporaryValue
+			, randomIndex
+			;
+
+		// While there remain elements to shuffle...
+		while (0 !== currentIndex) {
+			// Pick a remaining element...
+			randomIndex = Math.floor(Math.random() * currentIndex);
+			currentIndex -= 1;
+
+			// And swap it with the current element.
+			temporaryValue = array[currentIndex];
+			array[currentIndex] = array[randomIndex];
+			array[randomIndex] = temporaryValue;
+		}
+
+		return array;
+	}
+	
+	function getSurroundings(x, y) {
+		var surroundings = [[],[],[]];
+		for (var i = 0; i < 3; i++) {
+			for (var j = 0; j < 3; j++) {
+				var posX = getSafeCoordinate(x + i - 1);
+				var posY = getSafeCoordinate(y + j - 1);	
+				var location = surroundings[i][j] = game.map[posX][posY];
+				if (location == null) {
+					surroundings[i][j] == ' ';
+				} else {
+					surroundings[i][j] = location.name();
+				}
+			}
+		}
+		return surroundings;	
+	}
+	
+	function getSafeCoordinate(coord){
+		if (coord < 0) { return game.mapSize - 1;}
+		if (coord >= game.mapSize) { return 0; }
+		return coord;
+	}
+	
+	/* Button actions */
+	
+	function newGame(){
+		// Reset the game counter
+		currentTurn = 0;
+		
+		// Rset the map
+		game.map = makeSquareArray(game.mapSize);
+		
+		// Populate the game with the basic animals
+		$.each(animalsBase, function(k, v){
+			populateAnimal(array,v);
+		});
+		
+		// TODO: Populate the game with wolves
+		
+		// Update the animal counts
+		animalsBaseCount['s'] = 100;
+		animalsBaseCount['l'] = 100;
+		animalsBaseCount['b'] = 100;
+		
+		// Update the map and info
+		infoNewGame();
+		if (running) { infoUpdateGame(); }
+		draw();
+	}
+	
+	function run(){
+		if (running && (currentTurn < maxTurn)) {
+			next();
+		}
+	}
+	
+	function toggleRun(){
+		if (currentTurn >= maxTurn){
+			running = false;
+			// Reset so we can start a new game
+			newGame();
+		} else {
+			running = running ? false : true;
+			infoUpdateGame();
+		}
+	}
+	
+	/* Map display */
+	
+	function draw() {
+		canvas.width = canvas.width; // clears the canvas
+		var ctx = canvas.getContext("2d");
+		size = game.blockSize;
+	
+		// draw all the circles
+		// TODO: Fix the drawing bug here
+		for(var x = 0; x < game.mapSize; x++){
+			for(var y = 0; y < game.mapSize; y++){
+				if(game.map[x][y] != null) {
+					// Set the colour for that animal
+					switch(game.map[x][y].name()){
+						case "l" :
+							// Lions are yellow
+							ctx.fillStyle = "rgb(255,247,115)";
+							break;
+						case "b" :
+							// Bears are orange
+							ctx.fillStyle = "rgb(255,174,115)";
+							break;
+						case "s" :
+							// Stones are green 
+							ctx.fillStyle = "rgb(93,207,195)";
+							break;
+						case "w" :
+							// Wolves are purple
+							ctx.fillStyle = "rgb(160,105,214)";
+							break;
+					}
+					// Draw a circle where the animal is
+					ctx.moveTo(x*size+(size/2),y*size);
+					ctx.beginPath();
+					ctx.arc(x*size, y*size, size/2, 0, 2*Math.PI);
+					ctx.closePath();
+					ctx.fill();
+				}
+			}
+		}
+		
+		// Update the info panel
+		infoUpdateGame();
+	}	
+	
+	/* Info display */
+	
+	function infoNewGame() {
+		// Progress bar
+		$('#info-progressbar').removeClass('progress-bar-success');
+		// ToggleRun button
+		$('#run').text('Start!').removeClass('btn-danger').addClass('btn-success');
+	}
+	
+	function infoUpdateGame() {
+		// Progress bar
+		var progress = Number((100 * (currentTurn / maxTurn)).toFixed());
+		$('#info-progressbar').attr('aria-valuenow', progress).attr('style', 'width:' + progress + '%;').text(progress + '%');
+		// Animal counts
+		$('#count-stone').text(animalsBaseCount['s']);
+		$('#count-lion').text(animalsBaseCount['l']);
+		$('#count-bear').text(animalsBaseCount['b']);
+		// ToggleRun button
+		if (running) {
+			$('#run').text('Pause').removeClass('btn-success').addClass('btn-danger');
+		} else {
+			if (currentTurn == 0) {
+				$('#run').text('Start!').removeClass('btn-danger').addClass('btn-success');
+			} else {
+				$('#run').text('Contine').removeClass('btn-success').addClass('btn-danger');				
+			}
+		}
+	}	
+	
+	function infoEndGame(){
+		// Progress bar
+		$('#info-progressbar').addClass('progress-bar-success');
+		// ToggleRun button
+		$('#run').text('Game Finished!').removeClass('btn-succes').addClass('btn-danger');
+	}
+	
+	function init(cellSize, gridSize) {
+		canvas = document.getElementById('grid');
+		
+		game = {
+			blockSize: cellSize,
+			map: null,
+			mapSize: gridSize,
+		};
+		newGame();
+		setInterval('run()', 50);
+	}
+		
+	init(5, 150);
+	
+	</script>
+</body>
+</html>
