@@ -1,3 +1,5 @@
+// This file contains the Animal interface and base animal implementations
+
 var animalsBase = [Stone, Lion, Bear];
 var animalsBaseCount = 
 	{

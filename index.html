@@ -6,6 +6,8 @@
 	<link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
 	<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
 	<!-- Ours -->
+	<script src="map.js"></script>
+	<script src="game.js"></script>
 	<script src="animals-base.js"></script>
 	<script src="animals-wolves.js"></script>
 	
@@ -56,257 +58,21 @@
 	</div>
 	
 	<script type="text/javascript">
-	
-	var game;
 	var canvas;
+	var game;
 	var running = false;
-	var mapSize;
-	var halfStepMap = [];
-	var currentTurn = 0;
-	var maxTurn = 500;
-	
-	// make an m-by-n 2d array
-	function makeArray(cols,rows){
-		array = [];
-		for(var i = 0; i < rows; i++){
-			array[i] = [];
-			for(var j = 0; j < cols; j++){
-				array[i][j] = null;
-			}
-		}
-		
-		return array;
-	}
-	
-	function makeSquareArray(size) {
-		return makeArray(size, size);
-	}
-	
-	// place 100 animals of specified type at random positions
-	function populateAnimal(array, animalType) {
-		for(var animalCount = 0; animalCount < 100; animalCount++){
-			var x = Math.floor(Math.random() * array.length);
-			var y = Math.floor(Math.random() * array.length);
-			array[x][y] = new animalType;
-		}
-	}
-	
-	function next(){
-		// Clear the temp map used to find fights
-		halfStepMap = [];
-	
-		// Go through all the animals
-		for (var x = 0; x < game.mapSize; x++) {
-			for (var y = 0; y < game.mapSize; y++) {
-				if (game.map[x][y] != null) {
-					// Get the animal's surroundings and ask for it's move
-					var surroundings = getSurroundings(x,y);
-					var animal = game.map[x][y];
-					var move = animal.move(surroundings);
-					
-					// Move the animal
-					switch (move) {
-						case "h":
-							animalHalfStep(x, y, animal);
-							break;
-						case "l":
-							animalHalfStep(getSafeCoordinate(x-1), y, animal);
-							break;
-						case "u":
-							animalHalfStep(x, getSafeCoordinate(y-1), animal);
-							break;
-						case "r":
-							animalHalfStep(getSafeCoordinate(x+1), y, animal);
-							break;
-						case "d":
-							animalHalfStep(x, getSafeCoordinate(y+1), animal);
-							break;
-					}
-					
-					// Remove the animal from the old position
-					// Animals that don't move shouldn't be removed
-					if (move != "h"){
-						game.map[x][y] = null;
-					}
-				}
-			}
-		}
-		
-		// Resolve any fights that occur
-		resolveAllFights();
-		
-		// Redraw the map on screen
-		draw();
-		
-		currentTurn++;
-		
-		if (currentTurn == maxTurn) {
-			infoEndGame();
-		}
-	}	
-	
-	function animalHalfStep(x, y, animal) {
-		// TODO: replace this with something smarter (filters?)
-		var found = false;
-		$.each(halfStepMap, function(k, v) { 
-			if (v.x == x && v.y == y) {
-				v.animals.push(animal);
-				found = true;
-			}
-		});
-		if (!found) {
-			var halfStep = {x:x, y:y, animals:[animal]};
-			halfStepMap.push(halfStep);
-		}
-	}
-	
-	// Resolve fights on the map
-	function resolveAllFights() {
-		$.each(halfStepMap, function(k, v){
-			if (v.animals.length > 1) {
-				// fight the animals!
-				game.map[v.x][v.y] = resolveFight(v.animals);
-			} else {
-				// only one animal
-				game.map[v.x][v.y] = v.animals[0];
-			}
-		});
-	}
-	
-	
-	// Takes an array of animals, pseudo-randomly fights pairs of animals
-	// until only one remains
-	function resolveFight(animals) {
-		// While there are still animals standing...		
-		while(animals.length > 1){
-			// Shuffle list of animals
-			shuffle(animals);
-			// Make the first two animals fight!
-			var move0 = animals[0].fight(animals[1].name());
-			var move1 = animals[1].fight(animals[0].name());
-			// Check the winner of that fight
-			winner = playRockPaperScissorsSuicide(move0, move1);
-			if (winner === -1) {
-				// Both animals died, remove both from the list
-				animals.splice(0, 2)
-			} else {
-				// Remove the loser
-				animalsBaseCount[animals[winner].name()]--;
-				animals.splice(winner, 1);
-			}
-		}
-		return animals[0];
-	}
-	
-	// Returns 0 if first move won, 1 if second move won. -1 for double suicide
-	function playRockPaperScissorsSuicide(move0, move1){
-		// TODO: I don't really like this method...
-		var winner = -1; // No winners!
-		
-		if (move0 === move1) {
-			// A draw!
-			if (move0 === "x") {
-				// Double Suicide! Return -1
-			} else {
-				// Return a random winner
-				return Math.floor(Math.random()*2);
-			}
-		} else {
-			// Suicides
-			if (move0 === "x") { return 1; }
-			if (move1 === "x") { return 0; }
-		
-			switch (move0 + move1) {
-				case "rp" :
-					winner = 1;
-					break;
-				case "rs" :
-					winner = 0;
-					break;
-				case "pr" :
-					winner = 0;
-					break;
-				case "ps" :
-					winner = 1;
-					break;
-				case "sr" :
-					winner = 1;
-					break;
-				case "sp" :
-					winner = 0;
-					break;
-			}
-		}
-		
-		return winner;
-	}
-	
-	// http://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
-	function shuffle(array) {
-		var currentIndex = array.length
-			, temporaryValue
-			, randomIndex
-			;
-
-		// While there remain elements to shuffle...
-		while (0 !== currentIndex) {
-			// Pick a remaining element...
-			randomIndex = Math.floor(Math.random() * currentIndex);
-			currentIndex -= 1;
-
-			// And swap it with the current element.
-			temporaryValue = array[currentIndex];
-			array[currentIndex] = array[randomIndex];
-			array[randomIndex] = temporaryValue;
-		}
-
-		return array;
-	}
-	
-	function getSurroundings(x, y) {
-		var surroundings = [[],[],[]];
-		for (var i = 0; i < 3; i++) {
-			for (var j = 0; j < 3; j++) {
-				var posX = getSafeCoordinate(x + i - 1);
-				var posY = getSafeCoordinate(y + j - 1);	
-				var location = surroundings[i][j] = game.map[posX][posY];
-				if (location == null) {
-					surroundings[i][j] == ' ';
-				} else {
-					surroundings[i][j] = location.name();
-				}
-			}
-		}
-		return surroundings;	
-	}
-	
-	function getSafeCoordinate(coord){
-		if (coord < 0) { return game.mapSize - 1;}
-		if (coord >= game.mapSize) { return 0; }
-		return coord;
-	}
 	
 	/* Button actions */
 	
 	function newGame(){
-		// Reset the game counter
-		currentTurn = 0;
-		
-		// Rset the map
-		game.map = makeSquareArray(game.mapSize);
+		game.newGame();
 		
 		// Populate the game with the basic animals
-		$.each(animalsBase, function(k, v){
-			populateAnimal(array,v);
-		});
+		game.populate(animalsBase, 100);
 		
 		// TODO: Populate the game with wolves
-		
-		// Update the animal counts
-		animalsBaseCount['s'] = 100;
-		animalsBaseCount['l'] = 100;
-		animalsBaseCount['b'] = 100;
-		
+		//game.populate(animalsWolves);
+				
 		// Update the map and info
 		infoNewGame();
 		if (running) { infoUpdateGame(); }
@@ -314,13 +80,16 @@
 	}
 	
 	function run(){
-		if (running && (currentTurn < maxTurn)) {
-			next();
+		if (running && !game.isFinished()) {
+			game.next();
+			draw();
+		} else if (game.isFinished()){
+			infoEndGame();
 		}
 	}
 	
 	function toggleRun(){
-		if (currentTurn >= maxTurn){
+		if (game.isFinished()){
 			running = false;
 			// Reset so we can start a new game
 			newGame();
@@ -386,7 +155,7 @@
 	
 	function infoUpdateGame() {
 		// Progress bar
-		var progress = Number((100 * (currentTurn / maxTurn)).toFixed());
+		var progress = game.getProgress();
 		$('#info-progressbar').attr('aria-valuenow', progress).attr('style', 'width:' + progress + '%;').text(progress + '%');
 		// Animal counts
 		$('#count-stone').text(animalsBaseCount['s']);
@@ -396,7 +165,7 @@
 		if (running) {
 			$('#run').text('Pause').removeClass('btn-success').addClass('btn-danger');
 		} else {
-			if (currentTurn == 0) {
+			if (game.currentTurn == 0) {
 				$('#run').text('Start!').removeClass('btn-danger').addClass('btn-success');
 			} else {
 				$('#run').text('Continue').removeClass('btn-danger').addClass('btn-success');				
@@ -411,20 +180,18 @@
 		$('#run').text('Game Finished!').removeClass('btn-succes').addClass('btn-danger');
 	}
 	
-	function init(cellSize, gridSize) {
+	function init(blockSize, mapSize) {
 		canvas = document.getElementById('grid');
 		
-		game = {
-			blockSize: cellSize,
-			map: null,
-			mapSize: gridSize,
-		};
+		game = new SurvivalGame(blockSize, mapSize);
+
 		newGame();
 		setInterval('run()', 50);
 	}
 		
 	init(5, 150);
 	
+
 	</script>
 </body>
 </html>

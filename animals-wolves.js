@@ -1,3 +1,5 @@
+var animalsWolves = [LazyWolf, EmoWolf, SheepWolf];
+
 // Animal: LazyWolf
 function LazyWolf() {
 	Animal.call(this);
@@ -79,32 +81,32 @@ SheepWolf.prototype.move = function(surroundings) {
 	var yWeight = 0;
 	
 	// Northwest
-	xWeight += this.animalWeights.get(surroundings[0][0]);
-	yWeight += this.animalWeights.get(surroundings[0][0]);
+	xWeight += this.animalWeights[surroundings[0][0]];
+	yWeight += this.animalWeights[surroundings[0][0]];
 	
 	// North
-	yWeight += this.animalWeights.get(surroundings[0][1]);
+	yWeight += this.animalWeights[surroundings[0][1]];
 	
 	// Northeast
-	xWeight += this.animalWeights.get(surroundings[0][2]);
-	yWeight += this.animalWeights.get(surroundings[0][2]);
+	xWeight += this.animalWeights[surroundings[0][2]];
+	yWeight += this.animalWeights[surroundings[0][2]];
 	
 	// West
-	xWeight += this.animalWeights.get(surroundings[1][0]);
+	xWeight += this.animalWeights[surroundings[1][0]];
 	
 	// East
-	xWeight += this.animalWeights.get(surroundings[1][2]);
+	xWeight += this.animalWeights[surroundings[1][2]];
 	
 	// Southwest
-	xWeight += this.animalWeights.get(surroundings[2][0]);
-	yWeight += this.animalWeights.get(surroundings[2][0]);
+	xWeight += this.animalWeights[surroundings[2][0]];
+	yWeight += this.animalWeights[surroundings[2][0]];
 	
 	// South
-	yWeight += this.animalWeights.get(surroundings[2][1]);
+	yWeight += this.animalWeights[surroundings[2][1]];
 	
 	// South
-	xWeight += this.animalWeights.get(surroundings[2][2]);
-	yWeight += this.animalWeights.get(surroundings[2][2]);
+	xWeight += this.animalWeights[surroundings[2][2]];
+	yWeight += this.animalWeights[surroundings[2][2]];
 
 	if (Math.abs(xWeight) < Math.abs(yWeight)) {
 		if (yWeight > 0) {
