@@ -16,30 +16,24 @@ SurvivalGame.prototype.newGame = function() {
 	});
 }
 SurvivalGame.prototype.populate = function(activeAnimalList, count) {
-	// TODO: array?! What?! where does this come from?
+	var g = this;
+	
 	$.each(activeAnimalList, function(k, animalType){
+		var animalName = '';
+		
 		for(var animalCount = 0; animalCount < count; animalCount++){
-			var x = Math.floor(Math.random() * array.length);
-			var y = Math.floor(Math.random() * array.length);
-			array[x][y] = new animalType;
-			/*
-			var x = Math.floor(Math.random() * this.mapSize);
-			var y = Math.floor(Math.random() * this.mapSize);
-			var foo = new animalType;
-			console.log(this.map);
-			this.map[x][y] = foo; // TODO: this.map is undefined...
-			*/
+			var x = Math.floor(Math.random() * g.mapSize);
+			var y = Math.floor(Math.random() * g.mapSize);
+			g.map[x][y] = new animalType; 
+			
+			if (animalCount == 0) animalName = g.map[x][y].name();
 		}
 		
-		// TODO: I don't think we should be making a new animal just to get it's name...
-		// TODO: Can't access properties from method?
-		var a = new animalType;
-		animalsBaseCount[a.name()] += count;
+		animalsBaseCount[animalName] += count;
 	});
 }
 SurvivalGame.prototype.next = function() {
 	// Clear the temp map used to find fights
-	// TODO: Should this be moved to function SurvivalGame?
 	var halfStepMap = {};
 
 	// Go through all the animals
