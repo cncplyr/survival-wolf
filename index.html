@@ -99,6 +99,29 @@
 		}
 	}
 	
+	/* Iamge display */
+	var loadedCount = 0;
+	var wolf = new Image();
+	wolf.src = 'images/animal-wolf.png';
+	wolf.addEventListener('load', function(){animalLoaded();}, false);
+	var stone = new Image();
+	stone.src = 'images/animal-stone.png';
+	stone.addEventListener('load', function(){animalLoaded();}, false);
+	var lion = new Image();
+	lion.src = 'images/animal-lion.png';
+	lion.addEventListener('load', function(){animalLoaded();}, false);
+	var bear = new Image();
+	bear.src = 'images/animal-bear.png';
+	bear.addEventListener('load', function(){animalLoaded();}, false);
+	
+	function animalLoaded(){
+		console.log('loaded');
+		loadedCount++;
+		if (loadedCount > 3) {
+			newGame();
+		}
+	}
+	
 	/* Map display */
 	
 	function draw() {
@@ -115,27 +138,33 @@
 					switch(game.map[x][y].name()){
 						case "l" :
 							// Lions are yellow
+							ctx.drawImage(lion, x*size, y*size, 10, 10);
 							ctx.fillStyle = "rgb(255,247,115)";
 							break;
 						case "b" :
 							// Bears are orange
+							ctx.drawImage(bear, x*size, y*size, 10, 10);
 							ctx.fillStyle = "rgb(255,174,115)";
 							break;
 						case "s" :
 							// Stones are green 
+							ctx.drawImage(stone, x*size, y*size, 10, 10);
 							ctx.fillStyle = "rgb(93,207,195)";
 							break;
 						case "w" :
 							// Wolves are purple
+							ctx.drawImage(wolf, x*size, y*size, 10, 10);
 							ctx.fillStyle = "rgb(160,105,214)";
 							break;
 					}
 					// Draw a circle where the animal is
+					/*
 					ctx.moveTo(x*size+(size/2),y*size);
 					ctx.beginPath();
 					ctx.arc(x*size, y*size, size/2, 0, 2*Math.PI);
 					ctx.closePath();
 					ctx.fill();
+					*/
 				}
 			}
 		}
@@ -184,8 +213,9 @@
 		canvas = document.getElementById('grid');
 		
 		game = new SurvivalGame(blockSize, mapSize);
-
-		newGame();
+		
+		// Note: newGame() call is in image load callback
+		
 		setInterval('run()', 50);
 	}
 		
